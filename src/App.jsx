@@ -1,5 +1,5 @@
 import { Routes, Route } from 'react-router-dom';
-import Credentials from './pages/credentials.JSX';
+import Credentials from './pages/credentials.jsx';
 import Navbar from '../src/components/navbar/navbar';
 import Dashboard from './pages/dashboard';
 import { Toaster } from 'react-hot-toast';
