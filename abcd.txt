@@ -1,0 +1,63 @@
+# Meta Ads Manager Documentation
+
+## Getting Started
+
+When you first open the application, you'll be directed to the home screen that requests your credentials:
+
+1. **Required Credentials**:
+   - Business ID (also known as Ad Account ID)
+   - Access Token (for Meta Ads API authentication)
+
+2. **How to Enter Credentials**:
+   - Enter your Business ID (format: numeric ID)
+   - Enter your Access Token (obtained from Meta Business/Developer account)
+   - Click "Connect" to authenticate
+
+## Dashboard Navigation
+
+After successful authentication, you'll have access to the dashboard with four main sections:
+
+### 1. Account Overview
+- Displays general account information
+- Shows account status, spending limits, and balance
+- Provides a summary of your ad account performance
+
+### 2. Campaign Analytics
+- Lists all campaigns with performance metrics
+- Filters for active/inactive campaigns
+- Shows key metrics like impressions, reach, clicks, and spend
+- Date range selector for historical data analysis
+
+### 3. Adset Analytics
+- Breakdown of performance by ad sets
+- Demographic data visualization (age, gender, location)
+- Detailed metrics for each ad set
+- Comparative analysis between ad sets
+
+### 4. Creative Analytics
+- Shows ad creative performance metrics
+- Displays visual previews of your ad creatives
+- Metrics per creative including CTR, CPC, and engagement
+- Selection options to filter by campaign and ad set
+
+## Data Visualization Features
+
+- Performance charts and graphs
+- Demographic breakdowns
+- Time-series analysis
+- Sortable data tables for all metrics
+
+## Best Practices
+
+1. Use date filters to narrow your analysis to relevant time periods
+2. Compare metrics across different campaigns and ad sets
+3. Analyze audience demographics to optimize targeting
+4. Monitor creative performance to identify winning ad formats
+
+## Troubleshooting
+
+If you encounter issues loading the application:
+- Ensure your access token is valid and has not expired
+- Verify your Business ID is entered correctly
+- Check your internet connection
+- If using browser extensions like ad blockers, consider disabling them temporarily
