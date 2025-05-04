@@ -357,14 +357,67 @@ const CreativeAnalytics = () => {
           impressions: 0,
           clicks: 0,
           spend: 0,
+          reach: 0,
           ctr: 0,
-          cpc: 0
+          cpc: 0,
+          cpm: 0,
+          frequency: 0,
+          outbound_clicks: 0,
+          outbound_ctr: 0,
+          video_p25_watched: 0,
+          video_p50_watched: 0,
+          video_p75_watched: 0,
+          video_p100_watched: 0,
+          post_engagement: 0,
+          post_reactions: 0,
+          conversions: 0,
+          conversion_rate: 0,
+          cost_per_conversion: 0,
+          relevance_score: 0
         };
       }
       
       acc[key].impressions += parseInt(item.impressions) || 0;
       acc[key].clicks += parseInt(item.clicks) || 0;
       acc[key].spend += parseFloat(item.spend) || 0;
+      acc[key].reach += parseInt(item.reach) || 0;
+      
+      // Add video metrics if available
+      if (item.video_p25_watched_actions) {
+        acc[key].video_p25_watched += parseInt(item.video_p25_watched_actions[0]?.value) || 0;
+      }
+      if (item.video_p50_watched_actions) {
+        acc[key].video_p50_watched += parseInt(item.video_p50_watched_actions[0]?.value) || 0;
+      }
+      if (item.video_p75_watched_actions) {
+        acc[key].video_p75_watched += parseInt(item.video_p75_watched_actions[0]?.value) || 0;
+      }
+      if (item.video_p100_watched_actions) {
+        acc[key].video_p100_watched += parseInt(item.video_p100_watched_actions[0]?.value) || 0;
+      }
+      
+      // Add engagement metrics if available
+      if (item.inline_post_engagement) {
+        acc[key].post_engagement += parseInt(item.inline_post_engagement) || 0;
+      }
+      
+      // Add conversion metrics if available
+      if (item.actions && item.actions.length > 0) {
+        const conversionActions = item.actions.filter(action => 
+          action.action_type === 'offsite_conversion' || 
+          action.action_type === 'lead' || 
+          action.action_type === 'purchase'
+        );
+        
+        conversionActions.forEach(action => {
+          acc[key].conversions += parseInt(action.value) || 0;
+        });
+      }
+      
+      // Add outbound clicks if available
+      if (item.outbound_clicks && item.outbound_clicks.length > 0) {
+        acc[key].outbound_clicks += parseInt(item.outbound_clicks[0]?.value) || 0;
+      }
       
       return acc;
     }, {});
@@ -374,12 +427,20 @@ const CreativeAnalytics = () => {
       const ctr = item.impressions > 0 ? (item.clicks / item.impressions) * 100 : 0;
       const cpc = item.clicks > 0 ? item.spend / item.clicks : 0;
       const cpm = item.impressions > 0 ? (item.spend / item.impressions) * 1000 : 0;
+      const frequency = item.reach > 0 ? item.impressions / item.reach : 0;
+      const outbound_ctr = item.impressions > 0 ? (item.outbound_clicks / item.impressions) * 100 : 0;
+      const conversion_rate = item.clicks > 0 ? (item.conversions / item.clicks) * 100 : 0;
+      const cost_per_conversion = item.conversions > 0 ? item.spend / item.conversions : 0;
       
       return {
         ...item,
         ctr,
         cpc,
-        cpm
+        cpm,
+        frequency,
+        outbound_ctr,
+        conversion_rate,
+        cost_per_conversion
       };
     }).sort((a, b) => b.impressions - a.impressions);
   };
@@ -803,11 +864,50 @@ const CreativeAnalytics = () => {
                                         </th>
                                         <th 
                                           className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                          onClick={() => handlePlatformSort('reach')}
+                                        >
+                                          <div className="flex items-center justify-center">
+                                            REACH
+                                            {platformSortField === 'reach' && (
+                                              <span className="ml-1 font-bold text-blue-600">
+                                                {platformSortDirection === 'asc' ? '▼' : '▲'}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </th>
+                                        <th 
+                                          className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                          onClick={() => handlePlatformSort('frequency')}
+                                        >
+                                          <div className="flex items-center justify-center">
+                                            FREQ
+                                            {platformSortField === 'frequency' && (
+                                              <span className="ml-1 font-bold text-blue-600">
+                                                {platformSortDirection === 'asc' ? '▼' : '▲'}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </th>
+                                        <th 
+                                          className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                                           onClick={() => handlePlatformSort('clicks')}
                                         >
                                           <div className="flex items-center justify-center">
                                             CLICKS
                                             {platformSortField === 'clicks' && (
+                                              <span className="ml-1 font-bold text-blue-600">
+                                                {platformSortDirection === 'asc' ? '▼' : '▲'}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </th>
+                                        <th 
+                                          className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                          onClick={() => handlePlatformSort('outbound_clicks')}
+                                        >
+                                          <div className="flex items-center justify-center">
+                                            OUTB. CLICKS
+                                            {platformSortField === 'outbound_clicks' && (
                                               <span className="ml-1 font-bold text-blue-600">
                                                 {platformSortDirection === 'asc' ? '▼' : '▲'}
                                               </span>
@@ -834,6 +934,19 @@ const CreativeAnalytics = () => {
                                           <div className="flex items-center justify-center">
                                             CPM
                                             {platformSortField === 'cpm' && (
+                                              <span className="ml-1 font-bold text-blue-600">
+                                                {platformSortDirection === 'asc' ? '▼' : '▲'}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </th>
+                                        <th 
+                                          className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                          onClick={() => handlePlatformSort('conversions')}
+                                        >
+                                          <div className="flex items-center justify-center">
+                                            CONV.
+                                            {platformSortField === 'conversions' && (
                                               <span className="ml-1 font-bold text-blue-600">
                                                 {platformSortDirection === 'asc' ? '▼' : '▲'}
                                               </span>
@@ -870,13 +983,25 @@ const CreativeAnalytics = () => {
                                             {formatNumber(platform.impressions)}
                                           </td>
                                           <td className="px-4 py-3 text-sm text-center text-gray-500">
+                                            {formatNumber(platform.reach)}
+                                          </td>
+                                          <td className="px-4 py-3 text-sm text-center text-gray-500">
+                                            {platform.frequency.toFixed(2)}
+                                          </td>
+                                          <td className="px-4 py-3 text-sm text-center text-gray-500">
                                             {formatNumber(platform.clicks)}
+                                          </td>
+                                          <td className="px-4 py-3 text-sm text-center text-gray-500">
+                                            {formatNumber(platform.outbound_clicks)}
                                           </td>
                                           <td className="px-4 py-3 text-sm text-center text-gray-500">
                                             {platform.ctr.toFixed(1)}%
                                           </td>
                                           <td className="px-4 py-3 text-sm text-center text-gray-500">
                                             {formatCurrency(platform.cpm)}
+                                          </td>
+                                          <td className="px-4 py-3 text-sm text-center text-gray-500">
+                                            {formatNumber(platform.conversions)}
                                           </td>
                                           <td className="px-4 py-3 text-sm text-center text-gray-500">
                                             {formatCurrency(platform.spend)}
@@ -889,6 +1014,141 @@ const CreativeAnalytics = () => {
                               </td>
                             </tr>
                           )}
+                          
+                          {/* Creative Performance Metrics Section */}
+                          <tr>
+                            <td colSpan="9" className="px-4 py-4">
+                              <div className="text-base font-medium text-gray-800 mb-2">Creative Performance Metrics</div>
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                {/* Video Metrics */}
+                                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                  <h3 className="text-sm font-medium text-gray-700 mb-2">Video Performance</h3>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <p className="text-xs text-gray-600">25% Watched</p>
+                                      <p className="text-sm font-semibold text-gray-800">
+                                        {formatNumber(adData.video_p25_watched_actions?.[0]?.value || 0)}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-gray-600">50% Watched</p>
+                                      <p className="text-sm font-semibold text-gray-800">
+                                        {formatNumber(adData.video_p50_watched_actions?.[0]?.value || 0)}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-gray-600">75% Watched</p>
+                                      <p className="text-sm font-semibold text-gray-800">
+                                        {formatNumber(adData.video_p75_watched_actions?.[0]?.value || 0)}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-gray-600">100% Watched</p>
+                                      <p className="text-sm font-semibold text-gray-800">
+                                        {formatNumber(adData.video_p100_watched_actions?.[0]?.value || 0)}
+                                      </p>
+                                    </div>
+                                    <div className="col-span-2">
+                                      <p className="text-xs text-gray-600">Avg. Watch Time</p>
+                                      <p className="text-sm font-semibold text-gray-800">
+                                        {adData.video_avg_time_watched_actions?.[0]?.value 
+                                          ? `${(parseFloat(adData.video_avg_time_watched_actions[0].value)).toFixed(1)}s` 
+                                          : 'N/A'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                {/* Engagement Metrics */}
+                                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                  <h3 className="text-sm font-medium text-gray-700 mb-2">Engagement Metrics</h3>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <p className="text-xs text-gray-600">Post Engagement</p>
+                                      <p className="text-sm font-semibold text-gray-800">
+                                        {formatNumber(adData.inline_post_engagement || 0)}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-gray-600">Link Clicks</p>
+                                      <p className="text-sm font-semibold text-gray-800">
+                                        {formatNumber(adData.inline_link_clicks || adData.clicks || 0)}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-gray-600">Outbound Clicks</p>
+                                      <p className="text-sm font-semibold text-gray-800">
+                                        {formatNumber(adData.outbound_clicks?.[0]?.value || 0)}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-gray-600">Click-Through Rate</p>
+                                      <p className="text-sm font-semibold text-gray-800">
+                                        {adData.ctr ? `${parseFloat(adData.ctr).toFixed(2)}%` : '0%'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-gray-600">Cost Per Engagement</p>
+                                      <p className="text-sm font-semibold text-gray-800">
+                                        {formatCurrency(adData.inline_post_engagement && parseFloat(adData.spend) > 0
+                                          ? parseFloat(adData.spend) / parseInt(adData.inline_post_engagement)
+                                          : 0)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                {/* Ad Quality Indicators */}
+                                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                  <h3 className="text-sm font-medium text-gray-700 mb-2">Ad Quality</h3>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <p className="text-xs text-gray-600">Relevance Score</p>
+                                      <p className="text-sm font-semibold text-gray-800">
+                                        {adData.relevance_score?.score || 'N/A'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-gray-600">Frequency</p>
+                                      <p className="text-sm font-semibold text-gray-800">
+                                        {adData.impressions && adData.reach
+                                          ? (parseInt(adData.impressions) / parseInt(adData.reach)).toFixed(2)
+                                          : 'N/A'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-gray-600">Conversion Rate</p>
+                                      <p className="text-sm font-semibold text-gray-800">
+                                        {adData.actions && adData.clicks
+                                          ? `${((adData.actions.reduce((sum, action) => {
+                                              if (['offsite_conversion', 'lead', 'purchase'].includes(action.action_type)) {
+                                                return sum + parseInt(action.value);
+                                              }
+                                              return sum;
+                                            }, 0) / parseInt(adData.clicks)) * 100).toFixed(2)}%`
+                                          : 'N/A'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs text-gray-600">Cost Per Conversion</p>
+                                      <p className="text-sm font-semibold text-gray-800">
+                                        {adData.actions && adData.spend
+                                          ? formatCurrency(parseFloat(adData.spend) / 
+                                              adData.actions.reduce((sum, action) => {
+                                                if (['offsite_conversion', 'lead', 'purchase'].includes(action.action_type)) {
+                                                  return sum + parseInt(action.value);
+                                                }
+                                                return sum;
+                                              }, 0))
+                                          : 'N/A'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
                           
                           {/* Special metrics for video ads */}
                           {adType === 'video' && adData.video_p25_watched_actions && (
