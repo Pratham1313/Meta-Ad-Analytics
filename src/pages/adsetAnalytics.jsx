@@ -64,12 +64,8 @@ const AdsetAnalytics = () => {
       return 0;
     });
     
-    if (showOnlyActive) {
-      filteredCampaigns = filteredCampaigns.filter(campaign => campaign.status === 'ACTIVE');
-    }
-    
     setCampaigns(filteredCampaigns);
-  }, [showOnlyActive, allCampaigns]);
+  }, [allCampaigns]);
 
   // Format date in MM-DD-YYYY format for display
   const formatDisplayDate = (dateString) => {
@@ -902,31 +898,49 @@ const AdsetAnalytics = () => {
       </div>
 
       {/* Campaign Selection */}
-      <div className="mb-5">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Select Campaign</label>
-        
-        <div className="flex items-center justify-left gap-8 mb-2">
-        <select 
-          value={selectedCampaign}
-          onChange={(e) => setSelectedCampaign(e.target.value)}
-          className="w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-        >
-          {campaigns.map(campaign => (
-            <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
-          ))}
-        </select>
-          <div className="flex items-center">
-          <span className="ml-3 text-sm font-medium text-gray-700 mr-2.5">Show Only Active</span>
-
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input 
-                type="checkbox" 
-                checked={showOnlyActive} 
-                onChange={() => setShowOnlyActive(!showOnlyActive)} 
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-            </label>
+      <div className="flex gap-4 mb-5">
+        <div className="relative flex-1">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Campaign</label>
+          <div className="relative" style={{ minHeight: "70px" }}>
+            <select 
+              value={selectedCampaign || ''}
+              onChange={(e) => setSelectedCampaign(e.target.value)}
+              className="w-full max-w-lg px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+              style={{ 
+                appearance: 'menulist-button', 
+                position: 'relative',
+                zIndex: 10
+              }}
+            >
+              <option value="">Select Campaign</option>
+              {campaigns.filter(campaign => ['ACTIVE', 'PAUSED'].includes(campaign.status)).map(campaign => {
+                const isActive = campaign.status === 'ACTIVE';
+                return (
+                  <option 
+                    key={campaign.id} 
+                    value={campaign.id}
+                    className={isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}
+                    style={{
+                      padding: '8px',
+                      margin: '4px 0'
+                    }}
+                  >
+                    {campaign.name} - {campaign.status}
+                  </option>
+                );
+              })}
+            </select>
+            <div className="block text-xs absolute right-10 top-3">
+              {campaigns.find(c => c.id === selectedCampaign)?.status === 'ACTIVE' ? (
+                <span className="rounded-full px-2 py-1 bg-green-100 text-green-800">Active</span>
+              ) : campaigns.find(c => c.id === selectedCampaign)?.status === 'PAUSED' ? (
+                <span className="rounded-full px-2 py-1 bg-red-100 text-red-800">Paused</span>
+              ) : selectedCampaign ? (
+                <span className="rounded-full px-2 py-1 bg-gray-100 text-gray-800">
+                  {campaigns.find(c => c.id === selectedCampaign)?.status}
+                </span>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>

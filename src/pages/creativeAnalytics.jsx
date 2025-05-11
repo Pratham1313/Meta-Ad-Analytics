@@ -11,6 +11,9 @@ const CreativeAnalytics = () => {
   const [selectedCampaign, setSelectedCampaign] = useState(null);
   const [selectedAdset, setSelectedAdset] = useState(null);
   const [campaigns, setCampaigns] = useState([]);
+  const [allCampaigns, setAllCampaigns] = useState([]);
+  const [showOnlyActive, setShowOnlyActive] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [adsets, setAdsets] = useState([]);
   const [ads, setAds] = useState([]);
   const [platformData, setPlatformData] = useState([]);
@@ -25,14 +28,16 @@ const CreativeAnalytics = () => {
   const [platformSortField, setPlatformSortField] = useState('impressions');
   const [platformSortDirection, setPlatformSortDirection] = useState('desc');
   
-  // Date state
+  // Date state with updated defaults and date picker variables
   const [startDate, setStartDate] = useState(getDefaultStartDate());
   const [endDate, setEndDate] = useState(getDefaultEndDate());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDateOption, setSelectedDateOption] = useState('last30Days');
   
   // Helper functions for default dates
   function getDefaultStartDate() {
     const date = new Date();
-    date.setDate(date.getDate() - 30);
+    date.setDate(date.getDate() - 30); // Last 30 days
     return date.toISOString().split('T')[0];
   }
 
@@ -50,6 +55,67 @@ const CreativeAnalytics = () => {
   const formatCurrency = (amount) => {
     if (!amount) return '₹0.00';
     return `₹${parseFloat(amount).toFixed(2)}`;
+  };
+
+  // Set date range based on predefined options
+  const setDateRange = (option) => {
+    const today = new Date();
+    let start = new Date();
+    let end = new Date();
+    
+    setSelectedDateOption(option);
+    
+    switch (option) {
+      case 'today':
+        // Start and end are both today
+        break;
+      case 'yesterday':
+        start.setDate(today.getDate() - 1);
+        end.setDate(today.getDate() - 1);
+        break;
+      case 'last7Days':
+        start.setDate(today.getDate() - 7);
+        break;
+      case 'last14Days':
+        start.setDate(today.getDate() - 14);
+        break;
+      case 'last30Days':
+        start.setDate(today.getDate() - 30);
+        break;
+      case 'thisWeek':
+        start.setDate(today.getDate() - today.getDay());
+        break;
+      case 'lastWeek':
+        start.setDate(today.getDate() - today.getDay() - 7);
+        end.setDate(today.getDate() - today.getDay() - 1);
+        break;
+      case 'thisMonth':
+        start = new Date(today.getFullYear(), today.getMonth(), 1);
+        end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        break;
+      case 'lastMonth':
+        start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        end = new Date(today.getFullYear(), today.getMonth(), 0);
+        break;
+      default:
+        // Default to last 30 days
+        start.setDate(today.getDate() - 30);
+    }
+    
+    setStartDate(start.toISOString().split('T')[0]);
+    setEndDate(end.toISOString().split('T')[0]);
+  };
+
+  // Update date display for the dropdown button
+  const getDateRangeDisplay = () => {
+    const formattedStart = new Date(startDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+    const formattedEnd = new Date(endDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+    
+    if (selectedDateOption === 'last30Days') {
+      return `Last 30 days: ${formattedStart} - ${formattedEnd}`;
+    }
+    
+    return `${formattedStart} - ${formattedEnd}`;
   };
 
   // Function to handle column sorting
@@ -145,6 +211,20 @@ const CreativeAnalytics = () => {
     });
   };
 
+  // Sort campaigns to show active first
+  useEffect(() => {
+    let filteredCampaigns = [...allCampaigns];
+    
+    // Sort to show active campaigns first
+    filteredCampaigns.sort((a, b) => {
+      if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1;
+      if (b.status === 'ACTIVE' && a.status !== 'ACTIVE') return 1;
+      return 0;
+    });
+    
+    setCampaigns(filteredCampaigns);
+  }, [allCampaigns]);
+
   // Fetch campaigns first
   useEffect(() => {
     const fetchCampaigns = async () => {
@@ -157,18 +237,28 @@ const CreativeAnalytics = () => {
         const response = await axios.get(url);
         
         if (response.data.data && response.data.data.length > 0) {
-          const activeCampaigns = response.data.data.filter(campaign => campaign.status === 'ACTIVE');
-          const allCampaigns = response.data.data.map(campaign => ({
+          const fetchedCampaigns = response.data.data.map(campaign => ({
             id: campaign.id,
             name: campaign.name,
             status: campaign.status
           }));
           
-          setCampaigns(allCampaigns);
+          // Store all campaigns
+          setAllCampaigns(fetchedCampaigns);
           
-          // Set first campaign as selected
-          if (allCampaigns.length > 0 && !selectedCampaign) {
-            setSelectedCampaign(allCampaigns[0].id);
+          // If initial load or no campaign selected, select the first ACTIVE campaign
+          if ((!selectedCampaign || isInitialLoad) && fetchedCampaigns.length > 0) {
+            // First try to find an active campaign
+            const firstActiveCampaign = fetchedCampaigns.find(campaign => campaign.status === 'ACTIVE');
+            
+            if (firstActiveCampaign) {
+              setSelectedCampaign(firstActiveCampaign.id);
+            } else {
+              // If no active campaign found, fall back to the first campaign
+              setSelectedCampaign(fetchedCampaigns[0].id);
+            }
+            
+            setIsInitialLoad(false);
           }
         }
         setLoading(false);
@@ -180,7 +270,7 @@ const CreativeAnalytics = () => {
     };
 
     fetchCampaigns();
-  }, [businessId, accessToken]);
+  }, [businessId, accessToken, isInitialLoad]);
 
   // Fetch adsets when campaign is selected
   useEffect(() => {
@@ -466,6 +556,13 @@ const CreativeAnalytics = () => {
   // Get sorted ads
   const sortedAds = getSortedAds();
 
+  // Refetch data when date range changes
+  useEffect(() => {
+    if (ads && ads.length > 0) {
+      fetchAdAnalytics(ads.map(ad => ad.id));
+    }
+  }, [startDate, endDate]);
+
   return (
     <div>
       <div className="mb-5">
@@ -473,40 +570,224 @@ const CreativeAnalytics = () => {
         <p className="text-gray-600">View performance metrics for your ad creatives</p>
       </div>
 
-      {/* Campaign & Adset Selection */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="mb-4">
+      {/* Campaign Selection */}
+      <div className="flex gap-4">
+        <div className="relative flex-1">
           <label className="block text-sm font-medium text-gray-700 mb-2">Campaign</label>
-          <select 
-            value={selectedCampaign || ''}
-            onChange={(e) => setSelectedCampaign(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            disabled={loading}
-          >
-            <option value="">Select Campaign</option>
-            {campaigns.map(campaign => (
-              <option key={campaign.id} value={campaign.id}>
-                {campaign.name} {campaign.status !== 'ACTIVE' ? `(${campaign.status})` : ''}
-              </option>
-            ))}
-          </select>
+          <div className="relative" style={{ minHeight: "70px" }}>
+            <select 
+              value={selectedCampaign || ''}
+              onChange={(e) => setSelectedCampaign(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              disabled={loading}
+              style={{ 
+                appearance: 'menulist-button', 
+                position: 'relative',
+                zIndex: 10
+              }}
+            >
+              <option value="">Select Campaign</option>
+              {campaigns.filter(campaign => ['ACTIVE', 'PAUSED'].includes(campaign.status)).map(campaign => {
+                const isActive = campaign.status === 'ACTIVE';
+                return (
+                  <option 
+                    key={campaign.id} 
+                    value={campaign.id}
+                    className={isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}
+                    style={{
+                      padding: '8px',
+                      margin: '4px 0'
+                    }}
+                  >
+                    {campaign.name} - {campaign.status}
+                  </option>
+                );
+              })}
+            </select>
+            <div className="block text-xs absolute right-10 top-3">
+              {campaigns.find(c => c.id === selectedCampaign)?.status === 'ACTIVE' ? (
+                <span className="rounded-full px-2 py-1 bg-green-100 text-green-800">Active</span>
+              ) : campaigns.find(c => c.id === selectedCampaign)?.status === 'PAUSED' ? (
+                <span className="rounded-full px-2 py-1 bg-red-100 text-red-800">Paused</span>
+              ) : selectedCampaign ? (
+                <span className="rounded-full px-2 py-1 bg-gray-100 text-gray-800">
+                  {campaigns.find(c => c.id === selectedCampaign)?.status}
+                </span>
+              ) : null}
+            </div>
+          </div>
         </div>
         
-        <div className="mb-4">
+        <div className="relative flex-1">
           <label className="block text-sm font-medium text-gray-700 mb-2">Ad Set</label>
-          <select 
-            value={selectedAdset || ''}
-            onChange={(e) => setSelectedAdset(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            disabled={loading || adsets.length === 0}
+          <div className="relative" style={{ minHeight: "70px" }}>
+            <select 
+              value={selectedAdset || ''}
+              onChange={(e) => setSelectedAdset(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              disabled={loading || adsets.length === 0}
+              style={{ 
+                appearance: 'menulist-button',
+                position: 'relative',
+                zIndex: 9
+              }}
+            >
+              <option value="">Select Ad Set</option>
+              {adsets.map(adset => (
+                <option key={adset.id} value={adset.id}>
+                  {adset.name} {adset.status !== 'ACTIVE' ? `(${adset.status})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Date Range Selector */}
+      <div className="flex justify-end mb-5">
+        <div className="relative">
+          <button
+            className="flex items-center bg-gray-100 border border-gray-300 rounded-md px-4 py-2 text-sm font-medium"
+            onClick={() => setShowDatePicker(!showDatePicker)}
           >
-            <option value="">Select Ad Set</option>
-            {adsets.map(adset => (
-              <option key={adset.id} value={adset.id}>
-                {adset.name} {adset.status !== 'ACTIVE' ? `(${adset.status})` : ''}
-              </option>
-            ))}
-          </select>
+            <span className="mr-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/>
+              </svg>
+            </span>
+            {getDateRangeDisplay()}
+            <span className="ml-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
+              </svg>
+            </span>
+          </button>
+
+          {showDatePicker && (
+            <div className="absolute right-0 mt-2 z-50 bg-white shadow-lg rounded-md border border-gray-200 w-[600px]">
+              <div className="p-4">
+                <div className="flex">
+                  {/* Left side - Date range options */}
+                  <div className="w-1/3 border-r border-gray-200 pr-4">
+                    <div className="space-y-2">
+                      <label className="flex items-center cursor-pointer p-2 hover:bg-gray-100 rounded">
+                        <input 
+                          type="radio" 
+                          name="dateOption" 
+                          checked={selectedDateOption === 'today'} 
+                          onChange={() => {
+                            setDateRange('today'); 
+                            setShowDatePicker(!showDatePicker);
+                          }}
+                          className="mr-2"
+                        />
+                        Today
+                      </label>
+                      <label className="flex items-center cursor-pointer p-2 hover:bg-gray-100 rounded">
+                        <input 
+                          type="radio" 
+                          name="dateOption" 
+                          checked={selectedDateOption === 'yesterday'} 
+                          onChange={() => {
+                            setDateRange('yesterday'); 
+                            setShowDatePicker(!showDatePicker);
+                          }}
+                          className="mr-2"
+                        />
+                        Yesterday
+                      </label>
+                      <label className="flex items-center cursor-pointer p-2 hover:bg-gray-100 rounded">
+                        <input 
+                          type="radio" 
+                          name="dateOption" 
+                          checked={selectedDateOption === 'last7Days'} 
+                          onChange={() => {
+                            setDateRange('last7Days'); 
+                            setShowDatePicker(!showDatePicker);
+                          }}
+                          className="mr-2"
+                        />
+                        Last 7 days
+                      </label>
+                      <label className="flex items-center cursor-pointer p-2 hover:bg-gray-100 rounded">
+                        <input 
+                          type="radio" 
+                          name="dateOption" 
+                          checked={selectedDateOption === 'last14Days'} 
+                          onChange={() => {
+                            setDateRange('last14Days');
+                            setShowDatePicker(!showDatePicker);
+                          }}
+                          className="mr-2"
+                        />
+                        Last 14 days
+                      </label>
+                      <label className="flex items-center cursor-pointer p-2 hover:bg-gray-100 rounded">
+                        <input 
+                          type="radio" 
+                          name="dateOption" 
+                          checked={selectedDateOption === 'last30Days'} 
+                          onChange={() => {
+                            setDateRange('last30Days'); 
+                            setShowDatePicker(!showDatePicker);
+                          }}
+                          className="mr-2"
+                        />
+                        Last 30 days
+                      </label>
+                    </div>
+                  </div>
+                  
+                  {/* Right side - Custom date inputs */}
+                  <div className="w-2/3 pl-4">
+                    <div className="mb-4">
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="date"
+                          className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          value={startDate}
+                          onChange={(e) => {
+                            setStartDate(e.target.value);
+                            setSelectedDateOption('custom');
+                          }}
+                        />
+                        <span>-</span>
+                        <input
+                          type="date"
+                          className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          value={endDate}
+                          onChange={(e) => {
+                            setEndDate(e.target.value);
+                            setSelectedDateOption('custom');
+                          }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="mt-auto text-right pt-4 border-t border-gray-200">
+                      <div className="text-xs text-gray-500 mb-2">
+                        Data from {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm"
+                          onClick={() => setShowDatePicker(false)}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                          onClick={() => setShowDatePicker(false)}
+                        >
+                          Update
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
